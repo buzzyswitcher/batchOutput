@@ -9,6 +9,8 @@ import org.springframework.batch.item.database.JdbcPagingItemReader;
 import org.springframework.batch.item.database.Order;
 import org.springframework.batch.item.database.support.PostgresPagingQueryProvider;
 import org.springframework.batch.item.file.FlatFileItemWriter;
+import org.springframework.batch.item.support.ClassifierCompositeItemProcessor;
+import org.springframework.batch.item.support.ClassifierCompositeItemWriter;
 import org.springframework.batch.item.support.CompositeItemWriter;
 import org.springframework.batch.item.xml.StaxEventItemWriter;
 import org.springframework.context.annotation.Bean;
@@ -16,6 +18,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.oxm.xstream.XStreamMarshaller;
 import ru.volkov.batch.output.domain.Customer;
+import ru.volkov.batch.output.domain.CustomerClassifier;
 import ru.volkov.batch.output.domain.CustomerLineAggregator;
 import ru.volkov.batch.output.domain.CustomerRowMapper;
 
@@ -97,7 +100,7 @@ public class MultiFileJobConfiguration {
         return writer;
     }
 
-    @Bean
+/*    @Bean
     public CompositeItemWriter<Customer> compositeItemWriter() throws Exception {
         List<ItemWriter<? super Customer>> writers = new ArrayList<>(2);
 
@@ -109,6 +112,13 @@ public class MultiFileJobConfiguration {
         compositeWriter.afterPropertiesSet();
 
         return compositeWriter;
+    }*/
+
+    @Bean
+    public ClassifierCompositeItemWriter<Customer> classifierWriter() throws Exception {
+        ClassifierCompositeItemWriter<Customer> writer = new ClassifierCompositeItemWriter<>();
+        writer.setClassifier(new CustomerClassifier(xmlItemWriter(), jsonItemWriter()));
+        return writer;
     }
 
     @Bean
@@ -116,7 +126,9 @@ public class MultiFileJobConfiguration {
         return stepBuilderFactory.get("compositeStep")
                 .<Customer, Customer>chunk(10)
                 .reader(jdbcPagingItemReader())
-                .writer(compositeItemWriter())
+                .writer(classifierWriter())
+                .stream(xmlItemWriter())
+                .stream(jsonItemWriter())
                 .build();
 
     }
